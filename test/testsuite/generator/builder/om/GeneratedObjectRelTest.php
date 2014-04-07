@@ -783,9 +783,15 @@ class GeneratedObjectRelTest extends BookstoreEmptyTestBase
         $book->addBookClubList($list);
         $book->addBookClubList($list2);
         $this->assertCount(2, $book->getBookClubLists(), 'Two BookClubList');
+        $this->assertCount(2, $book->getBookListRels(), 'Two BookListRels present');
 
         $book->removeBookClubList($list);
         $this->assertCount(1, $book->getBookClubLists(), 'One BookClubList has been remove');
+        $this->assertCount(1, $book->getBookListRels(), 'One BookListRel present');
+
+        $book->save();
+        $book->clearBookClubLists();
+        $this->assertCount(1, $book->getBookClubLists(), 'One BookClubList has been saved');
     }
 
     public function testRemoveObjectStoredInDBFromCollection()

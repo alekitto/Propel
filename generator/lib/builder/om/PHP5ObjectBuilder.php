@@ -4631,6 +4631,7 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
         $joinedTableObjectBuilder = $this->getNewObjectBuilder($refFK->getTable());
         $className = $joinedTableObjectBuilder->getObjectClassname();
         $refKObjectClassName = $this->getRefFKPhpNameAffix($refFK, $plural = false);
+        $refKObjectClassNamePlural = lcfirst($this->getRefFKPhpNameAffix($refFK, true));
 
         $tblFK = $refFK->getTable();
         $foreignObjectName = '$' . $tblFK->getStudlyPhpName();
@@ -4650,6 +4651,19 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
             \$foreignCollection = \${$lowerRelatedObjectClassName}->get{$selfRelationNamePlural}();
             \$foreignCollection[] = \$this;
         }
+
+        if (\$this->{$refKObjectClassNamePlural}ScheduledForDeletion !== null)
+        {
+            \${$refKObjectClassNamePlural}Deleted = \$this->{$refKObjectClassNamePlural}ScheduledForDeletion->getArrayCopy();
+            foreach(\${$refKObjectClassNamePlural}Deleted as \$rel)
+            {
+                if (\$rel->get{$relatedObjectClassName}() === \${$lowerRelatedObjectClassName})
+                {
+                    \$this->{$refKObjectClassNamePlural}ScheduledForDeletion->remove(\$this->{$refKObjectClassNamePlural}ScheduledForDeletion->search(\$rel));
+                    \$this->add{$className}(\$rel);
+                }
+            }
+        }
     }
 ";
     }
@@ -4668,6 +4682,8 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
 
         $joinedTableObjectBuilder = $this->getNewObjectBuilder($refFK->getTable());
         $className = $joinedTableObjectBuilder->getObjectClassname();
+        $refFKCollName = $this->getRefFKCollVarName($refFK);
+        $refFKClassName = $this->getRefFKPhpNameAffix($refFK);
 
         $lowerRelCol = $relCol;
         $lowerRelCol[0] = strtolower($lowerRelCol[0]);
@@ -4696,6 +4712,15 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
                 \$this->{$M2MScheduledForDeletion}->clear();
             }
             \$this->{$M2MScheduledForDeletion}[]= {$crossObjectName};
+        }
+
+        if (\$this->{$refFKCollName} !== null) {
+            \${$className}Coll = \$this->{$refFKCollName}->getArrayCopy();
+            foreach(\${$className}Coll as \$referrerFK) {
+                if(\$referrerFK->get{$crossObjectClassName}() === $crossObjectName) {
+                    \$this->remove{$refFKClassName}(\$referrerFK);
+                }
+            }
         }
 
         return \$this;
@@ -4814,13 +4839,6 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
             }
 ";
 
-        if ($table->hasCrossForeignKeys()) {
-            foreach ($table->getCrossFks() as $fkList) {
-                list($refFK, $crossFK) = $fkList;
-                $this->addCrossFkScheduledForDeletion($script, $refFK, $crossFK);
-            }
-        }
-
         foreach ($table->getReferrers() as $refFK) {
             if ($refFK->isLocalPrimaryKey()) {
                 $varName = $this->getPKRefFKVarName($refFK);
@@ -4847,6 +4865,13 @@ abstract class " . $this->getClassname() . " extends " . $parentClass . " ";
             } // if refFK->isLocalPrimaryKey()
 
         } /* foreach getReferrers() */
+
+        if ($table->hasCrossForeignKeys()) {
+            foreach ($table->getCrossFks() as $fkList) {
+                list($refFK, $crossFK) = $fkList;
+                $this->addCrossFkScheduledForDeletion($script, $refFK, $crossFK);
+            }
+        }
 
         $script .= "
             \$this->alreadyInSave = false;
